@@ -8,7 +8,7 @@ import requests
 import csv
 import os
 
-# Base Node class
+# Base Node class representing a single point in the k-d tree
 class Node:
     def __init__(self, point, depth=0, timestamp=None):
         self.point = point
@@ -18,7 +18,7 @@ class Node:
         self.timestamp = timestamp if timestamp else time.time()
         self.access_time = self.timestamp  # For LRU strategies
 
-# Flexible KDTree
+# Flexible KDTree class for managing k-dimensional points
 class KDTree:
     def __init__(self, k, max_size, insertion_strategy, deletion_strategy):
         self.root = None
@@ -29,21 +29,24 @@ class KDTree:
         self.insertion_strategy = insertion_strategy
         self.deletion_strategy = deletion_strategy
 
+    # Insert a point into the tree
     def insert(self, point):
         timestamp = time.time()
         self.points.append((point, timestamp))
         self.root = self.insertion_strategy(self, self.root, point, 0, timestamp)
         self.size += 1
 
-        # Enforce window size by deleting excess nodes
+        # Remove excess nodes if the tree exceeds the maximum size
         while self.size > self.max_size:
             self.deletion_strategy(self)
 
+    # Delete a point from the tree
     def delete(self, point):
         def find_min(node, d, depth):
+            # Find the node with the minimum value in dimension d.
             if node is None:
                 return None
-            cd = depth % self.k
+            cd = depth % self.k # Current dimension
 
             if cd == d:
                 if node.left is None:
@@ -55,22 +58,26 @@ class KDTree:
                        find_min(node.right, d, depth + 1),
                        key=lambda x: x.point[d] if x else math.inf)
 
+        # Recursive deletion of a point.
         def delete_rec(node, point, depth):
             if node is None:
                 return None
 
-            cd = depth % self.k
+            cd = depth % self.k # Current dimension
 
             if node.point == point:
+                # Case: Node to delete has a right subtree
                 if node.right is not None:
                     min_node = find_min(node.right, cd, depth + 1)
                     node.point = min_node.point
                     node.right = delete_rec(node.right, min_node.point, depth + 1)
+                # Case: Node to delete has a left subtree
                 elif node.left is not None:
                     min_node = find_min(node.left, cd, depth + 1)
                     node.point = min_node.point
                     node.right = delete_rec(node.left, min_node.point, depth + 1)
                     node.left = None
+                # Case: Node to delete has no children
                 else:
                     return None
             elif point[cd] < node.point[cd]:
@@ -79,7 +86,7 @@ class KDTree:
                 node.right = delete_rec(node.right, point, depth + 1)
 
             return node
-
+        # Perform deletion and update size
         self.root = delete_rec(self.root, point, 0)
         self.size -= 1
 
