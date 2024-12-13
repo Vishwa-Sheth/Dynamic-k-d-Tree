@@ -90,16 +90,19 @@ class KDTree:
         self.root = delete_rec(self.root, point, 0)
         self.size -= 1
 
+    # Calculate the size of a subtree rooted at the given node
     def subtree_size(self, node):
         """Calculate the size of a subtree rooted at the given node."""
         if node is None:
             return 0
         return 1 + self.subtree_size(node.left) + self.subtree_size(node.right)
 
+    # Query the nearest neighbor to a target point
     def query(self, target):
         """Evaluate the tree by searching for a point nearest to the target."""
         best = {"node": None, "dist": float("inf")}
 
+        # Recursive nearest neighbor search
         def search(node, depth):
             if node is None:
                 return
@@ -107,10 +110,12 @@ class KDTree:
             cd = depth % self.k
             dist = sum((node.point[i] - target[i]) ** 2 for i in range(len(target)))
 
+            # Update best if the current node is closer
             if dist < best["dist"]:
                 best["node"] = node
                 best["dist"] = dist
 
+            # Traverse the tree in the direction of the target point
             next_branch = node.left if target[cd] < node.point[cd] else node.right
             opposite_branch = node.right if target[cd] < node.point[cd] else node.left
 
@@ -118,6 +123,7 @@ class KDTree:
             if abs(target[cd] - node.point[cd]) < best["dist"]:
                 search(opposite_branch, depth + 1)
 
+        # Start the search
         start_time = time.time()
         search(self.root, 0)
         end_time = time.time()
@@ -193,12 +199,13 @@ def build_balanced_tree(points, k, depth):
 
     return node
 
-# Fetch data
+# Fetch data from the NYC Open Data API
 def fetch_data():
     url = "https://data.cityofnewyork.us/resource/t29m-gskq.csv"
     response = requests.get(url)
     if response.status_code == 200:
         data = pd.read_csv(StringIO(response.text))
+        # Extract relevant attributes as 5D points
         data_points = [
             (row['pulocationid'], row['dolocationid'], row['passenger_count'], row['trip_distance'], row['fare_amount'])
             for _, row in data.iterrows()
@@ -207,20 +214,21 @@ def fetch_data():
     else:
         raise Exception("Failed to download dataset")
 
-# Load data and split into 90% for building and 10% for querying
+# Split the dataset into 90% for building and 10% for querying
 data_points = fetch_data()
 split_index = int(len(data_points) * 0.9)
 build_data = data_points[:split_index]
 query_data = data_points[split_index:]
 
-# Define all combinations
+# Define insertion and deletion strategies
 insertion_strategies = [basic_insertion, rebalance_insertion, advanced_insertion]
 deletion_strategies = [lru_deletion, oldest_deletion, temporal_deletion]
 
-# Analysis
+# Analyze performance for all combinations of strategies
 analysis_results = []
 for insertion in insertion_strategies:
     for deletion in deletion_strategies:
+        # Initialize a KDTree with specific strategies
         kdtree = KDTree(
             k=5,
             max_size=10,
@@ -228,16 +236,16 @@ for insertion in insertion_strategies:
             deletion_strategy=deletion,
         )
 
-        # Build KDTree
+        # # Build the tree as a streaming data and measure preprocessing time
         start_time = time.time()
         for point in build_data:
             kdtree.insert(point)
         preprocessing_time = time.time() - start_time
 
-        # Calculate space usage
+        # # Calculate memory usage
         space_usage = sys.getsizeof(kdtree) + sum(sys.getsizeof(node) for node in kdtree.points)
 
-        # Query KDTree
+        # Query the tree and measure total query time
         total_query_time = 0
         for query_point in query_data:
             _, _, query_time = kdtree.query(query_point)
