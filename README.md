@@ -91,3 +91,4 @@ pip install matplotlib pandas requests
 - Dataset Source: [NYC Open Data](https://data.cityofnewyork.us/resource/t29m-gskq.csv)
 - Downloaded dynamically during the execution of `analysis.py`.
 
+## Please note that you can directly run the code using Github Codespaces
